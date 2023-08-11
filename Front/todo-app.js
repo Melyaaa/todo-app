@@ -71,16 +71,24 @@
       item.classList.add('list-group-item-success');
     }
 
-    doneButton.addEventListener('click', function () {
+    doneButton.addEventListener('click', async function () {
       item.classList.toggle('list-group-item-success');
       for (const listItem of listArray) {
         if (listItem.id == obj.id) listItem.done = !listItem.done
       }
 
-      saveList(listArray, listName);
+      const response = await fetch(` http://localhost:3000/api/todos/${obj.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ done: !obj.done }),
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      // saveList(listArray, listName);
     });
 
-    deleteButton.addEventListener('click', function () {
+    deleteButton.addEventListener('click', async function () {
       if (confirm('Вы уверены?')) {
         item.remove();
 
@@ -88,7 +96,11 @@
           if (listArray[i].id == obj.id) listArray.splice(i, 1);
         }
 
-        saveList(listArray, listName);
+        const response = await fetch(` http://localhost:3000/api/todos/${obj.id}`, {
+          method: 'DELETE'
+        })
+
+        // saveList(listArray, listName);
       }
     });
 
@@ -98,11 +110,7 @@
     item.append(buttonGroup);
 
     // приложению даём доступ к самому элементу и кнопкам, чтобы обработать события нажатия
-    return {
-      item,
-      doneButton,
-      deleteButton,
-    };
+    return item;
   }
 
   function generateId() {
@@ -113,11 +121,11 @@
     return id;
   }
 
-  function saveList(arr, keyName) {
-    localStorage.setItem(keyName, JSON.stringify(arr));
-  }
+  // function saveList(arr, keyName) {
+  //   localStorage.setItem(keyName, JSON.stringify(arr));
+  // }
 
-  function createTodoApp(container, title = 'Список дел', keyName) {
+  async function createTodoApp(container, title = 'Список дел', keyName) {
     let todoAppTitle = createAppTitle(title);
     let todoItemForm = createTodoItemForm();
     let todoList = createTodoList();
@@ -128,19 +136,27 @@
     container.append(todoItemForm.form);
     container.append(todoList);
 
-    let localData = localStorage.getItem(listName);
+    const response = await fetch(`http://localhost:3000/api/todos?owner=${keyName}`);
+    const todoItemList = await response.json();
 
-    if (localData != null && localData != '') {
-      listArray = JSON.parse(localData);
-    }
+    todoItemList.forEach(todoItem => {
+      const todoItemElement = createTodoItem(todoItem);
+      todoList.append(todoItemElement);
+    });
 
-    for (const itemList of listArray) {
-      let todoItem = createTodoItem(itemList);
-      todoList.append(todoItem.item);
-    }
+    // let localData = localStorage.getItem(listName);
+
+    // if (localData != null && localData != '') {
+    //   listArray = JSON.parse(localData);
+    // }
+
+    // for (const itemList of listArray) {
+    //   let todoItem = createTodoItem(itemList);
+    //   todoList.append(todoItem.item);
+    // }
 
     //браузер создаёт событие submit на форме по нажатию на enter или на кнопку создания дела
-    todoItemForm.form.addEventListener('submit', function (e) {
+    todoItemForm.form.addEventListener('submit', async function (e) {
       // эта строчка необходима, чтобы предотвратить стандартное действие браузера
       // в данном случае мы не хотим, чтобы страница перезагружалась после отправки формы
       e.preventDefault();
@@ -153,16 +169,27 @@
       let newItem = {
         id: generateId(),
         name: todoItemForm.input.value,
-        done: false
+        done: false,
+        owner: keyName
       }
 
-      let todoItem = createTodoItem(newItem);
+      const response = await fetch(`http://localhost:3000/api/todos`, {
+        method: 'POST',
+        body: JSON.stringify(newItem),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const todoItem = await response.json()
+
+      let todoItemElement = createTodoItem(newItem);
 
       listArray.push(newItem);
 
-      saveList(listArray, listName);
+      // saveList(listArray, listName);
 
-      todoList.append(todoItem.item);
+      todoList.append(todoItemElement);
       todoItemForm.button.disabled = true;
       // обнуляем значение в поле, чтобы не пришлось стирать его вручную
       todoItemForm.input.value = '';
